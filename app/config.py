@@ -18,7 +18,14 @@ def load_configurations(app):
     app.config["GROQ_KEY_2"] = os.getenv("GROQ_KEY_2")
     app.config["GROQ_KEY_3"] = os.getenv("GROQ_KEY_3")
     app.config["GROQ_MODEL"] = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///leads.db")
+
+    db_url = os.getenv("DATABASE_URL")
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "connect_args": {"ssl": {"ssl_mode": "REQUIRED"}},
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 
