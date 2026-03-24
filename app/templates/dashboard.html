@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leads Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+        header {
+            background: #25D366;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        header h1 { font-size: 22px; font-weight: 600; }
+        header span { font-size: 13px; opacity: 0.85; margin-left: auto; }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 30px 40px 10px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 28px;
+            flex: 1;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .stat-card h2 { font-size: 32px; font-weight: 700; color: #25D366; }
+        .stat-card p { font-size: 13px; color: #666; margin-top: 4px; }
+
+        .container { padding: 20px 40px 40px; }
+
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            background: white;
+        }
+        .search-bar input:focus { border-color: #25D366; }
+
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            border-collapse: collapse;
+            overflow: hidden;
+        }
+        thead { background: #f8f9fa; }
+        th {
+            padding: 14px 18px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            border-bottom: 1px solid #eee;
+        }
+        td {
+            padding: 14px 18px;
+            font-size: 14px;
+            border-bottom: 1px solid #f5f5f5;
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f9fff9; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .unknown { background: #f5f5f5; color: #999; }
+
+        .wa-id { font-family: monospace; color: #555; font-size: 13px; }
+        .summary { color: #555; font-size: 13px; max-width: 250px; }
+        .date { color: #aaa; font-size: 12px; }
+
+        .empty {
+            text-align: center;
+            padding: 60px;
+            color: #aaa;
+        }
+        .empty h3 { font-size: 18px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l5.1-1.35C8.5 21.52 10.22 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
+    <h1>WhatsApp Leads Dashboard</h1>
+    <span>Total: {{ leads|length }} leads</span>
+</header>
+
+<div class="stats">
+    <div class="stat-card">
+        <h2>{{ leads|length }}</h2>
+        <p>Total Leads</p>
+    </div>
+    <div class="stat-card">
+        <h2>{{ leads|selectattr('email', 'ne', None)|list|length }}</h2>
+        <p>With Email</p>
+    </div>
+    <div class="stat-card">
+        <h2>{{ leads|selectattr('interest', 'ne', None)|list|length }}</h2>
+        <p>With Interest</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search by name, email, interest..." onkeyup="filterTable()">
+    </div>
+
+    {% if leads %}
+    <table id="leadsTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>WhatsApp ID</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Interest</th>
+                <th>Summary</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td><strong>{{ lead.name or '—' }}</strong></td>
+                <td><span class="wa-id">{{ lead.wa_id }}</span></td>
+                <td>
+                    {% if lead.email %}
+                        <span class="badge">{{ lead.email }}</span>
+                    {% else %}
+                        <span class="badge unknown">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ lead.phone or '—' }}</td>
+                <td>
+                    {% if lead.interest %}
+                        <span class="badge">{{ lead.interest }}</span>
+                    {% else %}
+                        <span class="badge unknown">—</span>
+                    {% endif %}
+                </td>
+                <td><span class="summary">{{ lead.summary or '—' }}</span></td>
+                <td><span class="date">{{ lead.last_seen.strftime('%b %d, %Y %H:%M') }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>No leads yet</h3>
+        <p>Leads will appear here once people start texting your WhatsApp bot.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function filterTable() {
+    const input = document.getElementById("searchInput").value.toLowerCase();
+    const rows = document.querySelectorAll("#leadsTable tbody tr");
+    rows.forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+    });
+}
+</script>
+
+</body>
+</html>
