@@ -2,7 +2,6 @@ import os
 import json
 import logging
 import itertools
-import shelve
 from groq import Groq
 
 _keys = [k for k in [
@@ -18,14 +17,26 @@ def get_client():
     return Groq(api_key=next(_key_cycle))
 
 
-def check_if_thread_exists(wa_id):
-    with shelve.open("threads_db") as shelf:
-        return shelf.get(wa_id, [])
+def get_history(wa_id):
+    from app import db
+    from app.models import Conversation
+    convo = Conversation.query.filter_by(wa_id=wa_id).first()
+    return convo.get_history() if convo else []
 
 
-def store_thread(wa_id, history):
-    with shelve.open("threads_db", writeback=True) as shelf:
-        shelf[wa_id] = history
+def save_history(wa_id, history):
+    from app import db
+    from app.models import Conversation
+    convo = Conversation.query.filter_by(wa_id=wa_id).first()
+    if not convo:
+        convo = Conversation(wa_id=wa_id)
+        db.session.add(convo)
+    convo.set_history(history)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to save conversation for {wa_id}: {e}")
 
 
 def extract_lead_info(history):
@@ -37,13 +48,13 @@ def extract_lead_info(history):
     )
 
     prompt = f"""
-Extract any user information from the conversation below.
+Extract user information from the conversation below.
 Return ONLY a valid JSON object with these keys:
 - name (full name or "unknown")
 - email (email address or "unknown")
 - phone (phone number or "unknown")
-- interest (what product/service they are interested in or "unknown")
-- summary (one sentence summary of who this person is and what they want, or "unknown")
+- interest (ANY product, service, topic, or problem they mentioned — be liberal, grab anything relevant, or "unknown")
+- summary (one sentence: who they are and what they want, or "unknown")
 
 Conversation:
 {conversation_text}
@@ -66,7 +77,7 @@ Respond ONLY with the JSON object, no other text.
 
 
 def generate_response(message_body, wa_id, name):
-    history = check_if_thread_exists(wa_id)
+    history = get_history(wa_id)
     history.append({"role": "user", "content": message_body})
 
     messages = [
@@ -75,7 +86,11 @@ def generate_response(message_body, wa_id, name):
             "content": (
                 "You are a helpful business assistant. "
                 "Be professional, friendly, and concise. "
-                "If someone seems interested in services, capture their interest warmly."
+                "You have memory of the full conversation history provided. "
+                "Always refer back to what the user has already told you. "
+                "Your goal is to understand what the person needs and capture their interest. "
+                "Always ask what they are looking for or what service/product they need. "
+                "Once you know, confirm their interest clearly in your reply."
             )
         }
     ] + history
@@ -94,7 +109,7 @@ def generate_response(message_body, wa_id, name):
             )
             reply = response.choices[0].message.content.strip()
             history.append({"role": "assistant", "content": reply})
-            store_thread(wa_id, history)
+            save_history(wa_id, history)
 
             extracted = extract_lead_info(history)
             if extracted:
