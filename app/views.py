@@ -1,20 +1,16 @@
 import logging
 import json
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 from .decorators.security import signature_required
-from .utils.whatsapp_utils import (
-    process_whatsapp_message,
-    is_valid_whatsapp_message,
-)
+from .utils.whatsapp_utils import process_whatsapp_message, is_valid_whatsapp_message
 
 webhook_blueprint = Blueprint("webhook", __name__)
 
 
 def handle_message():
     logging.info("=== INCOMING POST TO /webhook ===")
-    logging.info(f"Headers: {dict(request.headers)}")
     logging.info(f"Body: {request.get_data(as_text=True)}")
 
     body = request.get_json()
@@ -33,10 +29,7 @@ def handle_message():
             process_whatsapp_message(body)
             return jsonify({"status": "ok"}), 200
         else:
-            return (
-                jsonify({"status": "error", "message": "Not a WhatsApp API event"}),
-                404,
-            )
+            return jsonify({"status": "error", "message": "Not a WhatsApp API event"}), 404
     except json.JSONDecodeError:
         logging.error("Failed to decode JSON")
         return jsonify({"status": "error", "message": "Invalid JSON provided"}), 400
@@ -74,3 +67,10 @@ def webhook_post():
 @webhook_blueprint.route("/", methods=["GET"])
 def health():
     return "OK", 200
+
+
+@webhook_blueprint.route("/leads", methods=["GET"])
+def leads_dashboard():
+    from app.models import Lead
+    leads = Lead.query.order_by(Lead.last_seen.desc()).all()
+    return render_template("dashboard.html", leads=leads)

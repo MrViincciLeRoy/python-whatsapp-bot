@@ -1,16 +1,23 @@
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
 from app.config import load_configurations, configure_logging
-from .views import webhook_blueprint
+
+db = SQLAlchemy()
 
 
 def create_app():
     app = Flask(__name__)
 
-    # Load configurations and logging settings
     load_configurations(app)
     configure_logging()
 
-    # Import and register blueprints, if any
+    db.init_app(app)
+
+    from .views import webhook_blueprint
     app.register_blueprint(webhook_blueprint)
+
+    with app.app_context():
+        from app import models
+        db.create_all()
 
     return app

@@ -17,7 +17,10 @@ def load_configurations(app):
     app.config["GROQ_KEY_1"] = os.getenv("GROQ_KEY_1")
     app.config["GROQ_KEY_2"] = os.getenv("GROQ_KEY_2")
     app.config["GROQ_KEY_3"] = os.getenv("GROQ_KEY_3")
-    app.config["GROQ_MODEL"] = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+    app.config["GROQ_MODEL"] = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///leads.db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 
 def configure_logging():
     logging.basicConfig(
