@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 import itertools
 import shelve
 from groq import Groq
@@ -11,20 +13,60 @@ _keys = [k for k in [
 
 _key_cycle = itertools.cycle(_keys)
 
+
 def get_client():
     return Groq(api_key=next(_key_cycle))
+
 
 def check_if_thread_exists(wa_id):
     with shelve.open("threads_db") as shelf:
         return shelf.get(wa_id, [])
 
+
 def store_thread(wa_id, history):
     with shelve.open("threads_db", writeback=True) as shelf:
         shelf[wa_id] = history
 
+
+def extract_lead_info(history):
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    client = get_client()
+
+    conversation_text = "\n".join(
+        f"{m['role'].upper()}: {m['content']}" for m in history
+    )
+
+    prompt = f"""
+Extract any user information from the conversation below.
+Return ONLY a valid JSON object with these keys:
+- name (full name or "unknown")
+- email (email address or "unknown")
+- phone (phone number or "unknown")
+- interest (what product/service they are interested in or "unknown")
+- summary (one sentence summary of who this person is and what they want, or "unknown")
+
+Conversation:
+{conversation_text}
+
+Respond ONLY with the JSON object, no other text.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            temperature=0.1,
+        )
+        raw = response.choices[0].message.content.strip()
+        return json.loads(raw)
+    except Exception as e:
+        logging.error(f"Lead extraction failed: {e}")
+        return {}
+
+
 def generate_response(message_body, wa_id, name):
     history = check_if_thread_exists(wa_id)
-
     history.append({"role": "user", "content": message_body})
 
     messages = [
@@ -38,7 +80,7 @@ def generate_response(message_body, wa_id, name):
         }
     ] + history
 
-    model = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     max_retries = len(_keys)
 
     for attempt in range(max_retries):
@@ -53,7 +95,14 @@ def generate_response(message_body, wa_id, name):
             reply = response.choices[0].message.content.strip()
             history.append({"role": "assistant", "content": reply})
             store_thread(wa_id, history)
+
+            extracted = extract_lead_info(history)
+            if extracted:
+                from app.services.lead_service import upsert_lead
+                upsert_lead(wa_id, extracted)
+
             return reply
         except Exception as e:
+            logging.error(f"Groq attempt {attempt + 1} failed: {e}")
             if attempt == max_retries - 1:
                 return "Sorry, I'm having trouble responding right now. Please try again shortly."
