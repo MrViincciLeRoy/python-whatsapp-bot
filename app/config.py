@@ -14,7 +14,10 @@ def load_configurations(app):
     app.config["VERSION"] = os.getenv("VERSION")
     app.config["PHONE_NUMBER_ID"] = os.getenv("PHONE_NUMBER_ID")
     app.config["VERIFY_TOKEN"] = os.getenv("VERIFY_TOKEN")
-
+    app.config["GROQ_KEY_1"] = os.getenv("GROQ_KEY_1")
+    app.config["GROQ_KEY_2"] = os.getenv("GROQ_KEY_2")
+    app.config["GROQ_KEY_3"] = os.getenv("GROQ_KEY_3")
+    app.config["GROQ_MODEL"] = os.getenv("GROQ_MODEL", "llama3-70b-8192")
 
 def configure_logging():
     logging.basicConfig(
