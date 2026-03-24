@@ -56,4 +56,4 @@ def generate_response(message_body, wa_id, name):
             return reply
         except Exception as e:
             if attempt == max_retries - 1:
-                return "Sorry, I'm having trouble responding right now. Please try again shortly."￼Enter
+                return "Sorry, I'm having trouble responding right now. Please try again shortly."
