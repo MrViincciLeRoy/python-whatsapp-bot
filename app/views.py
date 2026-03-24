@@ -86,4 +86,6 @@ def webhook_get():
 def webhook_post():
     return handle_message()
 
-
+@webhook_blueprint.route("/", methods=["GET"])
+def health():
+    return "OK", 200
