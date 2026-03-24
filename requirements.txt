@@ -6,3 +6,5 @@ aiohttp
 requests
 groq
 gunicorn
+PyMySQL
+cryptography
