@@ -6,7 +6,6 @@ from app.models import Lead
 
 def upsert_lead(wa_id, extracted: dict):
     lead = Lead.query.filter_by(wa_id=wa_id).first()
-
     if not lead:
         lead = Lead(wa_id=wa_id)
         db.session.add(lead)
