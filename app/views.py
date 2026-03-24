@@ -9,10 +9,22 @@ from .utils.whatsapp_utils import process_whatsapp_message, is_valid_whatsapp_me
 webhook_blueprint = Blueprint("webhook", __name__)
 
 
-def handle_message():
-    logging.info("=== INCOMING POST TO /webhook ===")
-    logging.info(f"Body: {request.get_data(as_text=True)}")
+def is_duplicate(message_id):
+    from app import db
+    from app.models import ProcessedMessage
+    exists = ProcessedMessage.query.filter_by(message_id=message_id).first()
+    if exists:
+        return True
+    try:
+        db.session.add(ProcessedMessage(message_id=message_id))
+        db.session.commit()
+        return False
+    except Exception:
+        db.session.rollback()
+        return True
 
+
+def handle_message():
     body = request.get_json()
 
     if (
@@ -21,11 +33,16 @@ def handle_message():
         .get("value", {})
         .get("statuses")
     ):
-        logging.info("Received a WhatsApp status update.")
         return jsonify({"status": "ok"}), 200
 
     try:
         if is_valid_whatsapp_message(body):
+            message_id = body["entry"][0]["changes"][0]["value"]["messages"][0].get("id")
+
+            if message_id and is_duplicate(message_id):
+                logging.info(f"Duplicate message {message_id} — skipping")
+                return jsonify({"status": "ok"}), 200
+
             process_whatsapp_message(body)
             return jsonify({"status": "ok"}), 200
         else:
@@ -45,16 +62,13 @@ def verify():
             logging.info("WEBHOOK_VERIFIED")
             return challenge, 200
         else:
-            logging.info("VERIFICATION_FAILED")
             return jsonify({"status": "error", "message": "Verification failed"}), 403
     else:
-        logging.info("MISSING_PARAMETER")
         return jsonify({"status": "error", "message": "Missing parameters"}), 400
 
 
 @webhook_blueprint.route("/webhook", methods=["GET"])
 def webhook_get():
-    logging.info("=== INCOMING GET TO /webhook ===")
     return verify()
 
 
