@@ -33,3 +33,11 @@ class Conversation(db.Model):
 
     def set_history(self, history):
         self.history_json = json.dumps(history)
+
+
+class ProcessedMessage(db.Model):
+    __tablename__ = "processed_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.String(200), unique=True, nullable=False, index=True)
+    processed_at = db.Column(db.DateTime, default=datetime.utcnow)
